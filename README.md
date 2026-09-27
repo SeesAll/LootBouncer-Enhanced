@@ -1,166 +1,98 @@
-
 # LootBouncer (Enhanced Edition)
 
-**Version:** 1.3.1  
-**Enhanced by:** SeesAll  
+**Version:** 1.4.0
+**Enhanced by:** SeesAll
 
-LootBouncer is a Rust (uMod/Oxide) plugin that automatically cleans up partially looted containers and junkpiles to prevent spawn-group blocking and improve roadside loot cycling.
+LootBouncer removes abandoned leftovers from partially looted Rust world containers so their spawn groups can recycle normally. The enhanced edition adds safer timers, event protection, roadside group handling, bounded discarded-world-loot cleanup, and rolling administrator statistics.
 
-When players take only valuable items and leave junk behind, Rust normally keeps that container alive indefinitely. This blocks the spawn group from refreshing. LootBouncer solves this by automatically clearing leftover loot after a configurable delay so the spawn system can recycle the location naturally.
+## Credits
 
-This repository contains an **enhanced version** of the original plugin with additional features, performance improvements, and expanded roadside support.
+LootBouncer builds on the original plugin by Sorrow and Arainrr, with uMod listing credit to VisEntities. The enhanced branch is maintained by SeesAll.
 
----
+## Version 1.4 safety improvements
 
-# Credits
+- Protects AirfieldEvent crates identified as `airfieldcrate`.
+- Protects entities inside active RaidableBases event territory.
+- Protects MonumentAddons-created loot containers.
+- Provides `API_ProtectEntity`, `API_UnprotectEntity`, `CanLootBouncerProcess`, and `CanLootBouncerCleanDroppedItem` integration points for other plugins.
+- Waits until the final active looter closes a container.
+- Tracks active looters separately from players responsible for leaving loot.
+- Detects partial removal from a stack by comparing total quantities, not only stack count.
+- Revalidates entity eligibility, active looters, and timer generation before cleanup.
+- Cleans disconnected-player tracking safely.
+- Takes a stable snapshot of roadside group membership and retries group cleanup a bounded number of times.
+- Uses an exact, configurable roadside-anchor allowlist. Existing detected anchors are preserved during migration; newly discovered anchors default to disabled.
+- Newly discovered loot-container types default to disabled unless the administrator explicitly opts in.
+- Backs up an unreadable configuration and disables cleanup for that load instead of silently continuing destructively.
+- Maintains rolling 60-minute counters in memory without per-cleanup chat messages or an ever-growing log.
 
-This plugin builds upon the original LootBouncer plugin.
+## Partial container cleanup
 
-**Original Authors**
-- Sorrow
-- Arainrr
+When a player removes any quantity from a world loot container and leaves items behind, LootBouncer schedules the container for cleanup. Reopening the container cancels the pending timer. Cleanup is scheduled again only after the last active looter closes it.
 
-**uMod Listing Credit**
-- VisEntities
+The default container delay is 30 seconds. Existing server values are preserved during upgrade.
 
-**Enhanced Version**
-- SeesAll
+## Event protection
 
-Enhancements include new junkpile logic, improved roadside detection, better timer safety, and additional configuration options.
+Event safety is enabled by default for:
 
----
+- AirfieldEvent
+- RaidableBases active event territory
+- MonumentAddons-created entities
+- Trade boxes
 
-# Enhancements Over the Original Plugin
+Other plugins can veto cleanup by returning `false` from `CanLootBouncerProcess(LootContainer container)`, or can register individual entities through `API_ProtectEntity(BaseEntity entity)` and `API_UnprotectEntity(BaseEntity entity)`.
 
-This enhanced version introduces several improvements:
+## Junkpiles and roadside vehicles
 
-- Junkpile cleanup threshold system
-- Roadside vehicle / van junkpile detection
-- Configurable cleanup radius
-- Reopen-safe container timers
-- Junkpile failsafe cleanup timer
-- Improved spawn-group recycling
-- Performance and stability improvements
-- Cleaner configuration defaults
-- Optimized entity scanning and timer handling
+The first interaction records the original set of eligible containers in the spawn group. Later checks calculate progress against that stable snapshot, so containers already removed are still counted as looted.
 
-The goal is to keep roadside loot flowing naturally without interfering with Rust's spawn engine.
+If the configured threshold has not been met, the plugin retries after a configurable delay. After the configured maximum number of retries, an abandoned group may be recycled as a failsafe. An actively looted or event-protected group is never force-cleaned.
 
----
+Roadside vehicle anchors use exact short-prefab names stored in the configuration instead of unrestricted name-fragment matching.
 
-# Features
+## Discarded world loot
 
-## Partial Loot Cleanup
+Version 1.4 can shorten the lifetime of items discarded close to a LootBouncer-tracked world container. This is intended for unwanted items thrown beside monument and roadside crates.
 
-If a player partially loots a container, the plugin automatically clears it after a delay.
+The feature does not target backpacks. A dropped item is also preserved when:
 
-Default:
+- it is within the configured player-base exclusion radius;
+- it is in protected RaidableBases territory;
+- another plugin vetoes cleanup;
+- it has moved beyond the configured tolerance;
+- it is rare and rare-item protection is enabled; or
+- its shortname is in the configurable exclusion list.
 
-30 seconds
+The default grace period is 120 seconds. Detection requires the item to be dropped within 8 metres of a currently tracked world-loot container. The default player-base exclusion radius is 30 metres.
 
-This prevents containers from blocking spawn groups indefinitely.
+Other plugins can veto this cleanup by returning `false` from `CanLootBouncerCleanDroppedItem(Item item, WorldItem worldItem)`.
 
----
+## Administrator statistics
 
-## Reopen-Safe Containers
+LootBouncer does not announce every cleanup. Instead, it stores one small aggregate bucket per minute in memory and retains only the most recent 60 minutes. No individual item history is stored and the counters are not written to disk.
 
-If a player reopens a container before the timer expires:
+Chat command:
 
-- The timer is paused
-- The container remains tracked
-- When the container is closed again the cleanup timer resumes
+```text
+/lbstatus
+```
 
-This prevents accidental disabling of the cleanup system.
+Server or F1 console command:
 
----
+```text
+lootbouncer.status
+```
 
-## Junkpile Detection
+The commands report container removals, cleaned stack and item quantities, recycled groups, discarded world items, protected skips, and reopen cancellations.
 
-The plugin detects and groups roadside junkpile components such as:
+Access is granted to server administrators and users with:
 
-- barrels
-- crates
-- mixed roadside piles
+```text
+lootbouncer.admin
+```
 
-Once enough of the junkpile has been looted, the remaining containers can be cleared automatically.
-
----
-
-## Junkpile Cleanup Threshold
-
-Administrators can control how much of a junkpile must be looted before the remainder is cleared.
-
-Default:
-
-0.6 (60%)
-
-Example:
-
-| Containers | Required Looted |
-|------------|----------------|
-| 3 | 2 |
-| 4 | 3 |
-| 5 | 3 |
-
-This keeps cleanup natural while preventing blocked spawn groups.
-
----
-
-## Roadside Vehicle / Van Support
-
-Some roadside spawn groups contain vehicles such as vans or wrecked cars with loot containers.
-
-This enhanced version detects:
-
-- roadside vans
-- vehicle wreck piles
-- mixed roadside junk groups
-
-These now recycle properly instead of behaving like vanilla roadside spawns.
-
----
-
-## Junkpile Failsafe Timer
-
-Even if the cleanup threshold is never reached, abandoned junkpiles are cleared after a secondary timer.
-
-Default:
-
-150 seconds
-
-This guarantees spawn groups eventually recycle.
-
----
-
-## Configurable Cleanup Radius
-
-Administrators can control how far the plugin searches for related roadside loot.
-
-Default:
-
-12 meters
-
-This radius is used when detecting:
-
-- junkpile containers
-- roadside vehicle piles
-- related nearby loot
-
----
-
-## Optional Nearby Loot Cleanup
-
-When a junkpile is cleared, the plugin can optionally remove nearby standalone loot containers.
-
-Default:
-
-Disabled
-
-This prevents aggressive cleanup from affecting unrelated roadside spawns.
-
----
-
-# Default Configuration
+## Important configuration defaults
 
 ```json
 {
@@ -170,97 +102,39 @@ This prevents aggressive cleanup from affecting unrelated roadside spawns.
   "Maximum cleanup radius for roadside groups": 12.0,
   "Empty the nearby loot when emptying junkpile": false,
   "Time before junkpiles are emptied (seconds)": 150.0,
-  "Slaps players who don't empty containers": false,
-  "Remove items instead of dropping them": true
+  "Remove items instead of dropping them": true,
+  "Enable newly discovered loot containers by default": false,
+  "Protect AirfieldEvent containers": true,
+  "Protect MonumentAddons containers": true,
+  "Protect RaidableBases event territory": true,
+  "Enable rolling 60-minute cleanup statistics": true,
+  "Clean discarded world items near tracked loot containers": true,
+  "Discarded world item cleanup delay (seconds)": 120.0,
+  "Discarded world item trigger radius": 8.0,
+  "Player base exclusion radius for discarded world items": 30.0,
+  "Discarded world item movement tolerance": 3.0,
+  "Preserve rare discarded world items": true,
+  "Spawn-group retry delay (seconds)": 30.0,
+  "Maximum spawn-group cleanup retries": 4
 }
 ```
 
----
+Existing loot-container choices and timing preferences are retained when upgrading. New fields are merged into the existing configuration.
 
-# Installation
+## Installation
 
-1. Place **LootBouncer.cs** inside:
+Place `LootBouncer.cs` in `oxide/plugins`. Oxide will compile and load it automatically. To reload manually:
 
-```
-/oxide/plugins/
-```
-
-2. Reload the plugin:
-
-```
+```text
 oxide.reload LootBouncer
 ```
 
-3. The configuration file will generate automatically in:
+The configuration is stored at `oxide/config/LootBouncer.json`.
 
-```
-/oxide/config/LootBouncer.json
-```
+## Performance
 
----
+The plugin is event-driven. It performs localized pooled searches when a relevant interaction occurs and uses bounded timers rather than a permanent whole-map scan. Rolling statistics contain at most 60 aggregate entries.
 
-# Recommended Server Spawn Settings
-
-These settings work well with LootBouncer for modded servers.
-
-### 3x Servers
-
-```
-spawn.min_rate 0.35
-spawn.max_rate 0.65
-spawn.min_density 1.5
-spawn.max_density 2.5
-```
-
-### 5x Servers
-
-```
-spawn.min_rate 0.45
-spawn.max_rate 0.85
-spawn.min_density 2
-spawn.max_density 3
-```
-
-### 10x Servers
-
-```
-spawn.min_rate 0.5
-spawn.max_rate 1.0
-spawn.min_density 2
-spawn.max_density 3
-```
-
----
-
-# Performance
-
-LootBouncer is designed to be extremely lightweight.
-
-Key design principles:
-
-- Event-driven logic
-- Localized entity scanning
-- Safe pooled entity lists
-- Automatic timer cleanup
-- Spawn-system friendly behavior
-
-The plugin does **not**:
-
-- spawn loot manually
-- force spawn groups
-- scan the entire map
-- run heavy repeating loops
-
-This keeps performance impact minimal even on high population servers.
-
----
-
-# License
+## License
 
 This repository uses the MIT License.
-
----
-
-# Contributing
-
-Pull requests and improvements are welcome.

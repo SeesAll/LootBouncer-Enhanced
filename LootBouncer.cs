@@ -14,7 +14,7 @@ using Rust;
 
 namespace Oxide.Plugins
 {
-    [Info("Loot Bouncer", "Sorrow/Arainrr, enhanced by SeesAll", "1.4.1")]
+    [Info("Loot Bouncer", "Sorrow/Arainrr, enhanced by SeesAll", "1.4.2")]
     [Description("Automatically clears abandoned loot containers and optional junkpiles when players leave items behind")]
     public class LootBouncer : RustPlugin
     {
@@ -1863,7 +1863,7 @@ namespace Oxide.Plugins
             [JsonProperty(PropertyName = "Preserve rare discarded world items")]
             public bool preserveRareDroppedItems = true;
 
-            [JsonProperty(PropertyName = "Discarded world item shortname exclusions")]
+            [JsonProperty(PropertyName = "Discarded world item shortname exclusions", ObjectCreationHandling = ObjectCreationHandling.Replace)]
             public List<string> excludedDroppedItemShortNames = new List<string>
             {
                 "scrap", "metal.refined", "explosives", "gunpowder", "sulfur", "sulfur.ore",
@@ -1977,6 +1977,30 @@ namespace Oxide.Plugins
             {
                 configData.excludedDroppedItemShortNames = new ConfigData().excludedDroppedItemShortNames;
                 configChanged = true;
+            }
+            else
+            {
+                var uniqueShortNames = new List<string>();
+                var seenShortNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var shortName in configData.excludedDroppedItemShortNames)
+                {
+                    if (string.IsNullOrWhiteSpace(shortName))
+                    {
+                        continue;
+                    }
+
+                    var normalizedShortName = shortName.Trim();
+                    if (seenShortNames.Add(normalizedShortName))
+                    {
+                        uniqueShortNames.Add(normalizedShortName);
+                    }
+                }
+
+                if (!configData.excludedDroppedItemShortNames.SequenceEqual(uniqueShortNames, StringComparer.Ordinal))
+                {
+                    configData.excludedDroppedItemShortNames = uniqueShortNames;
+                    configChanged = true;
+                }
             }
 
             var validatedLootDelay = Math.Max(1f, configData.timeBeforeLootEmpty);

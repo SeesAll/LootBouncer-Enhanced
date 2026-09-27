@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.2 - 2026-09-26
+
+- Fixed repeated plugin reloads appending duplicate default entries to the discarded-world-item exclusion list.
+- Existing exclusion lists are normalized case-insensitively while preserving custom shortnames and their original order.
+
 ## 1.4.1 - 2026-09-26
 
 - Restricted the initial roadside-anchor migration to the confirmed `shreddable_pickuptruck` prefab.

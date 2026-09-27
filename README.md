@@ -1,6 +1,6 @@
 # LootBouncer (Enhanced Edition)
 
-**Version:** 1.4.1
+**Version:** 1.4.2
 **Enhanced by:** SeesAll
 
 LootBouncer removes abandoned leftovers from partially looted Rust world containers so their spawn groups can recycle normally. The enhanced edition adds safer timers, event protection, roadside group handling, bounded discarded-world-loot cleanup, and rolling administrator statistics.
@@ -65,6 +65,8 @@ The feature does not target backpacks. A dropped item is also preserved when:
 - its shortname is in the configurable exclusion list.
 
 The default grace period is 120 seconds. Detection requires the item to be dropped within 8 metres of a currently tracked world-loot container. The default player-base exclusion radius is 30 metres.
+
+The exclusion list is replaced as a complete JSON collection when read and is normalized on load. This prevents repeated plugin reloads from appending duplicate default entries while preserving custom shortnames.
 
 Other plugins can veto this cleanup by returning `false` from `CanLootBouncerCleanDroppedItem(Item item, WorldItem worldItem)`.
 

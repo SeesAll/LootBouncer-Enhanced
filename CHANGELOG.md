@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.1 - 2026-09-26
+
+- Restricted the initial roadside-anchor migration to the confirmed `shreddable_pickuptruck` prefab.
+- Prevented broad legacy fragments such as `van` from matching unrelated names including `advanced`, `vanity`, and `vanilla`.
+
 ## 1.4.0 - 2026-09-26
 
 ### Added

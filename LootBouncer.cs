@@ -14,7 +14,7 @@ using Rust;
 
 namespace Oxide.Plugins
 {
-    [Info("Loot Bouncer", "Sorrow/Arainrr, enhanced by SeesAll", "1.4.0")]
+    [Info("Loot Bouncer", "Sorrow/Arainrr, enhanced by SeesAll", "1.4.1")]
     [Description("Automatically clears abandoned loot containers and optional junkpiles when players leave items behind")]
     public class LootBouncer : RustPlugin
     {
@@ -806,17 +806,11 @@ namespace Oxide.Plugins
                 && enabled;
         }
 
-        private static bool LooksLikeLegacyRoadsideVehicleAnchor(string shortPrefabName)
+        private static bool IsKnownRoadsideVehicleAnchorSeed(string shortPrefabName)
         {
-            if (string.IsNullOrEmpty(shortPrefabName))
-            {
-                return false;
-            }
-
-            return shortPrefabName.IndexOf("vehicle", StringComparison.OrdinalIgnoreCase) >= 0
-                || shortPrefabName.IndexOf("wreck", StringComparison.OrdinalIgnoreCase) >= 0
-                || shortPrefabName.IndexOf("van", StringComparison.OrdinalIgnoreCase) >= 0
-                || shortPrefabName.IndexOf("truck", StringComparison.OrdinalIgnoreCase) >= 0;
+            // Seed only a confirmed static roadside anchor. Broad fragments such as
+            // "van" also match unrelated names like "advanced" and "vanity".
+            return string.Equals(shortPrefabName, "shreddable_pickuptruck", StringComparison.Ordinal);
         }
 
         private bool TryFindAssociatedRoadsideVehicleAnchor(LootContainer lootContainer, out BaseEntity anchorEntity, out SpawnGroup spawnGroup)
@@ -1752,7 +1746,7 @@ namespace Oxide.Plugins
                 var baseEntity = prefabObject?.GetComponent<BaseEntity>();
                 if (baseEntity != null
                     && !string.IsNullOrEmpty(baseEntity.ShortPrefabName)
-                    && LooksLikeLegacyRoadsideVehicleAnchor(baseEntity.ShortPrefabName)
+                    && IsKnownRoadsideVehicleAnchorSeed(baseEntity.ShortPrefabName)
                     && !configData.roadsideVehicleAnchors.ContainsKey(baseEntity.ShortPrefabName))
                 {
                     configData.roadsideVehicleAnchors.Add(baseEntity.ShortPrefabName, !configData.roadsideVehicleAnchorsInitialized);

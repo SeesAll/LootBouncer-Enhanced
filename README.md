@@ -1,6 +1,6 @@
 # LootBouncer (Enhanced Edition)
 
-**Version:** 1.4.0
+**Version:** 1.4.1
 **Enhanced by:** SeesAll
 
 LootBouncer removes abandoned leftovers from partially looted Rust world containers so their spawn groups can recycle normally. The enhanced edition adds safer timers, event protection, roadside group handling, bounded discarded-world-loot cleanup, and rolling administrator statistics.
@@ -21,7 +21,7 @@ LootBouncer builds on the original plugin by Sorrow and Arainrr, with uMod listi
 - Revalidates entity eligibility, active looters, and timer generation before cleanup.
 - Cleans disconnected-player tracking safely.
 - Takes a stable snapshot of roadside group membership and retries group cleanup a bounded number of times.
-- Uses an exact, configurable roadside-anchor allowlist. Existing detected anchors are preserved during migration; newly discovered anchors default to disabled.
+- Uses an exact, configurable roadside-anchor allowlist. A confirmed static roadside pickup-truck anchor is seeded during migration; newly discovered candidates remain disabled.
 - Newly discovered loot-container types default to disabled unless the administrator explicitly opts in.
 - Backs up an unreadable configuration and disables cleanup for that load instead of silently continuing destructively.
 - Maintains rolling 60-minute counters in memory without per-cleanup chat messages or an ever-growing log.
